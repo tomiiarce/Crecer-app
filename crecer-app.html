@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crecer 🌱 — La app del papá</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --mint:#3ECFB2; --mint-l:#E8FAF6; --coral:#FF6B6B; --coral-l:#FFF0F0;
+    --sun:#FFD166; --sun-l:#FFFBEE; --purple:#9B72CF; --purple-l:#F4EEFF;
+    --blue:#4DABF7; --blue-l:#EEF7FF; --dark:#1A1A2E; --mid:#6B7280;
+    --light:#F9FAFB; --white:#FFFFFF; --border:#F0F0F0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Nunito Sans',sans-serif; background:var(--light); color:var(--dark); overflow-x:hidden; }
+  .screen { display:none; min-height:100vh; animation:pop .3s ease; }
+  .screen.active { display:flex; flex-direction:column; }
+  @keyframes pop { from{opacity:0;transform:scale(.97) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+
+  /* LOADING */
+  #loading { background:var(--dark); justify-content:center; align-items:center; }
+  .loader-logo { font-family:'Nunito',sans-serif; font-weight:900; font-size:52px; color:white; }
+  .loader-logo span { color:var(--mint); }
+  .loader-dot { display:flex; gap:8px; justify-content:center; margin-top:20px; }
+  .loader-dot div { width:8px; height:8px; border-radius:50%; background:var(--mint); animation:bounce 1.2s infinite; }
+  .loader-dot div:nth-child(2) { animation-delay:.2s; }
+  .loader-dot div:nth-child(3) { animation-delay:.4s; }
+  @keyframes bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
+
+  /* AUTH */
+  #auth { background:linear-gradient(160deg,#1A1A2E 0%,#16213E 60%,#0F3460 100%); justify-content:center; align-items:center; padding:40px 28px; position:relative; overflow:hidden; }
+  .blob1 { position:absolute; width:320px; height:320px; background:radial-gradient(circle,rgba(62,207,178,.22) 0%,transparent 70%); top:-80px; right:-60px; border-radius:50%; animation:float 6s ease-in-out infinite; }
+  .blob2 { position:absolute; width:260px; height:260px; background:radial-gradient(circle,rgba(255,107,107,.18) 0%,transparent 70%); bottom:-60px; left:-40px; border-radius:50%; animation:float 8s ease-in-out infinite reverse; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-18px)} }
+  .auth-inner { position:relative; z-index:2; max-width:360px; width:100%; text-align:center; }
+  .app-icon { width:88px; height:88px; background:linear-gradient(135deg,var(--mint) 0%,var(--blue) 100%); border-radius:26px; margin:0 auto 18px; display:flex; align-items:center; justify-content:center; font-size:42px; box-shadow:0 12px 36px rgba(62,207,178,.32); }
+  .app-name { font-family:'Nunito',sans-serif; font-weight:900; font-size:46px; color:white; letter-spacing:-1px; margin-bottom:8px; }
+  .app-name span { color:var(--mint); }
+  .app-tagline { font-size:16px; color:rgba(255,255,255,.6); line-height:1.5; margin-bottom:36px; }
+
+  .auth-box { background:rgba(255,255,255,.07); border:1.5px solid rgba(255,255,255,.12); border-radius:24px; padding:28px; margin-bottom:16px; }
+  .auth-tabs { display:flex; background:rgba(255,255,255,.08); border-radius:12px; padding:4px; margin-bottom:20px; }
+  .auth-tab { flex:1; padding:10px; border:none; background:none; color:rgba(255,255,255,.5); font-family:'Nunito',sans-serif; font-weight:700; font-size:14px; cursor:pointer; border-radius:9px; transition:all .2s; }
+  .auth-tab.active { background:white; color:var(--dark); }
+  .auth-inp { width:100%; padding:13px 16px; background:rgba(255,255,255,.1); border:1.5px solid rgba(255,255,255,.15); border-radius:12px; font-family:'Nunito Sans',sans-serif; font-size:15px; color:white; outline:none; margin-bottom:12px; transition:border-color .2s; }
+  .auth-inp::placeholder { color:rgba(255,255,255,.4); }
+  .auth-inp:focus { border-color:var(--mint); }
+  .btn-auth { width:100%; padding:15px; background:linear-gradient(135deg,var(--mint) 0%,var(--blue) 100%); color:white; border:none; border-radius:14px; font-family:'Nunito',sans-serif; font-size:16px; font-weight:800; cursor:pointer; transition:all .2s; box-shadow:0 6px 20px rgba(62,207,178,.28); }
+  .btn-auth:hover { transform:translateY(-2px); }
+  .auth-err { color:#FF6B6B; font-size:13px; font-weight:600; margin-bottom:10px; min-height:18px; }
+
+  .divider { display:flex; align-items:center; gap:12px; margin:16px 0; color:rgba(255,255,255,.3); font-size:13px; }
+  .divider::before,.divider::after { content:''; flex:1; height:1px; background:rgba(255,255,255,.12); }
+  .btn-google { width:100%; padding:14px; background:white; color:var(--dark); border:none; border-radius:14px; font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; gap:10px; }
+  .btn-google:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.15); }
+
+  /* ONBOARDING */
+  #onboarding { background:var(--white); padding:60px 24px 40px; align-items:center; justify-content:center; }
+  .ob-inner { max-width:380px; width:100%; }
+  .ob-emoji { font-size:60px; margin-bottom:16px; text-align:center; }
+  .ob-title { font-family:'Nunito',sans-serif; font-weight:900; font-size:30px; margin-bottom:8px; text-align:center; }
+  .ob-sub { font-size:15px; color:var(--mid); text-align:center; margin-bottom:32px; line-height:1.6; }
+  .inp-label { display:block; font-weight:700; font-size:12px; color:var(--mid); margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+  .inp-field { width:100%; padding:14px 16px; background:var(--light); border:2px solid var(--border); border-radius:14px; font-family:'Nunito Sans',sans-serif; font-size:16px; color:var(--dark); outline:none; transition:border-color .2s; margin-bottom:16px; }
+  .inp-field:focus { border-color:var(--mint); }
+  .btn-ob { width:100%; padding:16px; background:var(--dark); color:white; border:none; border-radius:16px; font-family:'Nunito',sans-serif; font-size:17px; font-weight:800; cursor:pointer; transition:all .2s; }
+  .btn-ob:hover { background:var(--mint); color:var(--dark); }
+
+  /* HOME */
+  #home { background:var(--light); padding-bottom:90px; }
+  .home-top { background:linear-gradient(160deg,#1A1A2E 0%,#0F3460 100%); padding:52px 24px 28px; position:relative; overflow:hidden; }
+  .home-top::after { content:''; position:absolute; width:250px; height:250px; background:radial-gradient(circle,rgba(62,207,178,.22) 0%,transparent 70%); top:-60px; right:-40px; border-radius:50%; }
+  .ht-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; position:relative; z-index:2; }
+  .ht-logo { font-family:'Nunito',sans-serif; font-weight:900; font-size:26px; color:white; }
+  .ht-logo span { color:var(--mint); }
+  .ht-avatar { width:42px; height:42px; border-radius:14px; background:linear-gradient(135deg,var(--mint),var(--blue)); display:flex; align-items:center; justify-content:center; font-family:'Nunito',sans-serif; font-weight:900; color:white; font-size:18px; cursor:pointer; }
+  .week-pill { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.11); border-radius:20px; padding:22px; position:relative; z-index:2; }
+  .wk-label { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,.45); font-weight:700; margin-bottom:5px; }
+  .wk-big { font-family:'Nunito',sans-serif; font-weight:900; font-size:50px; color:white; line-height:1; letter-spacing:-2px; }
+  .wk-big em { font-size:17px; font-style:normal; color:rgba(255,255,255,.45); font-weight:600; }
+  .wk-text { font-size:14px; color:rgba(255,255,255,.65); margin-top:8px; line-height:1.5; }
+  .wk-bar { height:6px; background:rgba(255,255,255,.12); border-radius:3px; margin-top:14px; overflow:hidden; }
+  .wk-fill { height:100%; background:linear-gradient(90deg,var(--mint),var(--blue)); border-radius:3px; transition:width .8s ease; }
+
+  .home-greeting { padding:20px 24px 4px; font-family:'Nunito',sans-serif; font-size:22px; font-weight:800; color:var(--dark); }
+  .home-greeting span { color:var(--mint); }
+  .tip-row { margin:8px 24px 4px; padding:16px; background:var(--sun-l); border-radius:18px; border:2px solid var(--sun); display:flex; gap:12px; align-items:flex-start; }
+  .tip-ico { font-size:26px; flex-shrink:0; }
+  .tip-tag { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:#B8860B; margin-bottom:3px; }
+  .tip-txt { font-size:14px; color:var(--dark); line-height:1.55; }
+
+  .sections-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px 24px; }
+  .sec-card { background:white; border-radius:20px; padding:18px; cursor:pointer; transition:all .2s; border:2px solid transparent; }
+  .sec-card:hover { transform:translateY(-4px); box-shadow:0 8px 24px rgba(0,0,0,.08); }
+  .sec-card.wide { grid-column:span 2; display:flex; align-items:center; gap:14px; }
+  .sec-ico { font-size:32px; margin-bottom:8px; display:block; }
+  .sec-card.wide .sec-ico { font-size:36px; margin:0; }
+  .sec-name { font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; color:var(--dark); margin-bottom:3px; }
+  .sec-desc { font-size:12px; color:var(--mid); line-height:1.4; }
+  .c-mint { background:var(--mint-l); border-color:rgba(62,207,178,.25); }
+  .c-coral { background:var(--coral-l); border-color:rgba(255,107,107,.25); }
+  .c-sun { background:var(--sun-l); border-color:rgba(255,209,102,.4); }
+  .c-purple { background:var(--purple-l); border-color:rgba(155,114,207,.25); }
+  .c-blue { background:var(--blue-l); border-color:rgba(77,171,247,.25); }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:white; border-top:2px solid var(--border); display:flex; padding:10px 0 18px; z-index:200; box-shadow:0 -4px 20px rgba(0,0,0,.06); }
+  .nav-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; padding:4px; }
+  .nav-icon { font-size:22px; transition:transform .2s; }
+  .nav-item:hover .nav-icon { transform:scale(1.2); }
+  .nav-label { font-size:10px; color:var(--mid); font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
+  .nav-item.active .nav-label { color:var(--mint); }
+
+  /* PAGE HEADER */
+  .pg-header { background:white; padding:52px 24px 20px; border-bottom:2px solid var(--border); }
+  .pg-back { background:none; border:none; font-family:'Nunito Sans',sans-serif; font-size:14px; color:var(--mid); cursor:pointer; display:flex; align-items:center; gap:6px; margin-bottom:10px; padding:0; }
+  .pg-title { font-family:'Nunito',sans-serif; font-weight:900; font-size:28px; color:var(--dark); margin-bottom:3px; }
+  .pg-sub { font-size:14px; color:var(--mid); }
+  .section-label { font-family:'Nunito',sans-serif; font-weight:800; font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--mid); margin-bottom:10px; }
+
+  /* RECORDATORIOS */
+  #recordatorios { background:var(--light); padding-bottom:90px; }
+  .rem-body { padding:20px 24px; }
+  .chip-row { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none; margin-bottom:20px; }
+  .chip-row::-webkit-scrollbar { display:none; }
+  .chip { display:flex; align-items:center; gap:6px; background:white; border:2px solid var(--border); border-radius:100px; padding:9px 14px; white-space:nowrap; font-size:13px; font-weight:700; color:var(--dark); cursor:pointer; transition:all .2s; flex-shrink:0; }
+  .chip:hover { border-color:var(--mint); color:var(--mint); background:var(--mint-l); }
+  .add-box { background:white; border-radius:20px; padding:18px; margin-bottom:20px; border:2px solid var(--border); }
+  .add-box-title { font-family:'Nunito',sans-serif; font-weight:800; font-size:15px; margin-bottom:14px; }
+  .add-row { display:flex; gap:8px; margin-bottom:10px; }
+  .add-inp { flex:1; padding:12px 14px; background:var(--light); border:2px solid var(--border); border-radius:12px; font-family:'Nunito Sans',sans-serif; font-size:14px; color:var(--dark); outline:none; transition:border-color .2s; }
+  .add-inp:focus { border-color:var(--mint); }
+  .add-sel { padding:12px; background:var(--light); border:2px solid var(--border); border-radius:12px; font-family:'Nunito Sans',sans-serif; font-size:14px; color:var(--dark); outline:none; cursor:pointer; }
+  .btn-agregar { width:100%; padding:13px; background:var(--mint); color:white; border:none; border-radius:12px; font-family:'Nunito',sans-serif; font-size:15px; font-weight:800; cursor:pointer; transition:all .2s; }
+  .btn-agregar:hover { background:#2bb89d; }
+  .rem-item { display:flex; align-items:center; gap:12px; background:white; border-radius:16px; padding:14px 16px; margin-bottom:10px; transition:all .2s; border:2px solid transparent; }
+  .rem-item.done { opacity:.45; }
+  .rem-item.done .rem-name { text-decoration:line-through; }
+  .rem-ico2 { font-size:24px; }
+  .rem-info { flex:1; }
+  .rem-name { font-weight:700; font-size:15px; color:var(--dark); }
+  .rem-freq { font-size:12px; color:var(--mid); margin-top:2px; }
+  .rem-chk { width:28px; height:28px; border:2.5px solid var(--border); border-radius:9px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all .2s; flex-shrink:0; }
+  .rem-chk.on { background:var(--mint); border-color:var(--mint); color:white; }
+  .rem-del { background:none; border:none; color:rgba(107,114,128,.35); cursor:pointer; font-size:18px; transition:color .2s; }
+  .rem-del:hover { color:var(--coral); }
+
+  /* COMPRAS */
+  #compras { background:var(--light); padding-bottom:90px; }
+  .compras-body { padding:16px 24px; }
+  .cat-pill { display:inline-flex; align-items:center; gap:6px; background:var(--dark); color:white; font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; padding:10px 16px; border-radius:100px; margin:0 0 14px; }
+  .buy-item { display:flex; align-items:flex-start; gap:12px; background:white; border-radius:16px; padding:14px 16px; margin-bottom:10px; border:2px solid transparent; transition:all .2s; }
+  .buy-item.done { opacity:.5; }
+  .buy-item.done .buy-name { text-decoration:line-through; }
+  .buy-chk { width:26px; height:26px; border:2.5px solid var(--border); border-radius:8px; flex-shrink:0; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; transition:all .2s; margin-top:1px; }
+  .buy-chk.on { background:var(--mint); border-color:var(--mint); color:white; }
+  .buy-info { flex:1; }
+  .buy-name { font-weight:700; font-size:15px; color:var(--dark); margin-bottom:3px; }
+  .buy-desc { font-size:12px; color:var(--mid); line-height:1.4; margin-bottom:6px; }
+  .buy-row2 { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .buy-price { background:var(--mint-l); color:#1a8a75; font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; padding:4px 10px; border-radius:100px; }
+  .buy-rec { background:var(--purple-l); color:var(--purple); font-size:12px; font-weight:700; padding:4px 10px; border-radius:100px; }
+  .buy-prio { background:var(--coral-l); color:var(--coral); font-size:12px; font-weight:700; padding:4px 10px; border-radius:100px; }
+  .buy-links { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .btn-ml { display:inline-flex; align-items:center; gap:5px; background:#FFE600; color:#333; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 12px; border-radius:100px; text-decoration:none; transition:all .2s; border:none; cursor:pointer; }
+  .btn-ml:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(255,230,0,.4); }
+  .btn-fb { display:inline-flex; align-items:center; gap:5px; background:#1877F2; color:white; font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:7px 12px; border-radius:100px; text-decoration:none; transition:all .2s; border:none; cursor:pointer; }
+  .btn-fb:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(24,119,242,.35); }
+  .price-updated { font-size:11px; color:var(--mid); margin-top:6px; }
+
+  /* LIBROS */
+  #libros { background:var(--light); padding-bottom:90px; }
+  .libros-body { padding:16px 24px; }
+  .book-card { background:white; border-radius:20px; padding:18px; margin-bottom:14px; display:flex; gap:14px; border:2px solid var(--border); transition:all .2s; }
+  .book-card:hover { transform:translateX(4px); border-color:var(--purple); }
+  .book-cover { width:64px; height:90px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:32px; }
+  .book-title { font-family:'Nunito',sans-serif; font-weight:800; font-size:15px; color:var(--dark); margin-bottom:4px; }
+  .book-author { font-size:13px; color:var(--mid); margin-bottom:6px; }
+  .book-desc { font-size:13px; color:var(--mid); line-height:1.5; margin-bottom:8px; }
+  .book-tags { display:flex; gap:6px; flex-wrap:wrap; }
+  .book-tag { font-size:11px; font-weight:700; padding:3px 9px; border-radius:100px; background:var(--purple-l); color:var(--purple); }
+  .book-tag.green { background:var(--mint-l); color:#1a8a75; }
+  .book-tag.orange { background:var(--sun-l); color:#b8860b; }
+
+  /* GUIA */
+  #guia { background:var(--light); padding-bottom:90px; }
+  .guia-body { padding:16px 24px; }
+  .guia-section { background:white; border-radius:20px; padding:18px; margin-bottom:14px; border:2px solid var(--border); }
+  .guia-sec-title { font-family:'Nunito',sans-serif; font-weight:800; font-size:16px; color:var(--dark); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .guia-item { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; line-height:1.55; }
+  .guia-item:last-child { border-bottom:none; padding-bottom:0; }
+  .guia-dot { color:var(--mint); font-size:18px; flex-shrink:0; margin-top:1px; }
+
+  /* SEMANAS */
+  #semanas { background:var(--light); padding-bottom:90px; }
+  .weeks-body { padding:16px 24px; }
+  .wk-item { display:flex; align-items:center; gap:12px; background:white; border-radius:16px; padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:all .2s; border:2px solid transparent; }
+  .wk-item:hover { border-color:var(--mint); transform:translateX(4px); }
+  .wk-item.cur { border-color:var(--mint); background:var(--mint-l); }
+  .wk-badge { width:48px; height:48px; background:var(--light); border-radius:14px; display:flex; align-items:center; justify-content:center; font-family:'Nunito',sans-serif; font-weight:900; font-size:20px; flex-shrink:0; }
+  .wk-item.cur .wk-badge { background:var(--mint); color:white; }
+  .wk-item-t { font-weight:700; font-size:15px; color:var(--dark); }
+  .wk-item-s { font-size:13px; color:var(--mid); margin-top:2px; }
+  .cur-tag { margin-left:auto; background:var(--mint); color:white; font-size:11px; font-weight:800; padding:4px 10px; border-radius:100px; flex-shrink:0; }
+
+  /* DETALLE */
+  #detail { background:var(--light); padding-bottom:90px; }
+  .det-header { padding:52px 24px 24px; background:linear-gradient(160deg,#1A1A2E 0%,#0F3460 100%); color:white; }
+  .det-back { background:none; border:none; color:rgba(255,255,255,.6); font-family:'Nunito Sans',sans-serif; font-size:14px; cursor:pointer; display:flex; align-items:center; gap:6px; padding:0; margin-bottom:16px; }
+  .det-wk { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,.5); font-weight:700; margin-bottom:6px; }
+  .det-title { font-family:'Nunito',sans-serif; font-weight:900; font-size:30px; line-height:1.2; margin-bottom:8px; }
+  .det-sub { font-size:14px; color:rgba(255,255,255,.7); line-height:1.5; }
+  .det-body { padding:20px 24px; }
+  .det-sec { background:white; border-radius:18px; padding:18px; margin-bottom:12px; border:2px solid var(--border); }
+  .det-sec-title { font-family:'Nunito',sans-serif; font-weight:800; font-size:15px; color:var(--dark); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+  .det-sec p { font-size:14px; color:var(--mid); line-height:1.7; margin-bottom:8px; }
+  .det-sec p:last-child { margin-bottom:0; }
+  .det-task { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; color:var(--dark); line-height:1.5; }
+  .det-task:last-child { border-bottom:none; }
+  .det-chk { width:22px; height:22px; border:2.5px solid var(--border); border-radius:7px; flex-shrink:0; margin-top:1px; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; font-size:12px; }
+  .det-chk.on { background:var(--mint); border-color:var(--mint); color:white; }
+
+  /* TOAST */
+  .toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(16px); background:var(--dark); color:white; padding:12px 22px; border-radius:100px; font-size:14px; font-weight:700; opacity:0; transition:all .3s; z-index:999; white-space:nowrap; box-shadow:0 8px 24px rgba(0,0,0,.2); }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media(min-width:480px) { body { max-width:430px; margin:0 auto; box-shadow:0 0 60px rgba(0,0,0,.12); } }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading" class="screen active">
+  <div class="loader-logo">Cre<span>cer</span> 🌱</div>
+  <div class="loader-dot"><div></div><div></div><div></div></div>
+</div>
+
+<!-- AUTH -->
+<div id="auth" class="screen">
+  <div class="blob1"></div><div class="blob2"></div>
+  <div class="auth-inner">
+    <div class="app-icon">🌱</div>
+    <div class="app-name">Cre<span>cer</span></div>
+    <div class="app-tagline">La app para los papás que quieren<br>estar presentes desde el día uno 💪</div>
+    <div class="auth-box">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')">Iniciar sesión</button>
+        <button class="auth-tab" onclick="switchTab('register')">Registrarse</button>
+      </div>
+      <div class="auth-err" id="authErr"></div>
+      <input class="auth-inp" id="authEmail" type="email" placeholder="Tu email">
+      <input class="auth-inp" id="authPass" type="password" placeholder="Contraseña">
+      <input class="auth-inp" id="authNombre" type="text" placeholder="Tu nombre (solo al registrarte)" style="display:none">
+      <button class="btn-auth" id="btnAuth" onclick="handleAuth()">Iniciar sesión</button>
+    </div>
+    <div class="divider">o</div>
+    <button class="btn-google" onclick="loginGoogle()">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l6-6C34.5 6.5 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.1-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 19 12 24 12c3 0 5.7 1.1 7.8 2.9l6-6C34.5 6.5 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 10-1.9 13.6-5l-6.3-5.2C29.5 35.3 26.9 36 24 36c-5.2 0-9.6-2.9-11.3-7l-6.6 5.1C9.8 39.8 16.4 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.5-2.6 4.6-4.8 6l6.3 5.2C40.5 36 43.7 30.4 43.7 24c0-1.3-.1-2.7-.1-4z"/></svg>
+      Continuar con Google
+    </button>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="onboarding" class="screen">
+  <div class="ob-inner">
+    <div class="ob-emoji">🥳</div>
+    <div class="ob-title">¡Felicitaciones!</div>
+    <div class="ob-sub">Completá tu perfil para personalizar la app.</div>
+    <label class="inp-label">¿Cómo te llamás?</label>
+    <input class="inp-field" id="obNombre" type="text" placeholder="Ej: Matías">
+    <label class="inp-label">¿En qué semana están?</label>
+    <input class="inp-field" id="obSemana" type="number" placeholder="Ej: 18" min="1" max="40" value="18">
+    <label class="inp-label">Fecha probable de parto</label>
+    <input class="inp-field" id="obFecha" type="date">
+    <button class="btn-ob" onclick="saveProfile()">¡Arranquemos! 🚀</button>
+  </div>
+</div>
+
+<!-- HOME -->
+<div id="home" class="screen">
+  <div class="home-top">
+    <div class="ht-row">
+      <div class="ht-logo">Cre<span>cer</span> 🌱</div>
+      <div class="ht-avatar" id="avatarLetter" onclick="logout()">M</div>
+    </div>
+    <div class="week-pill">
+      <div class="wk-label">Semana actual</div>
+      <div class="wk-big" id="homeSemana">18 <em>/ 40</em></div>
+      <div class="wk-text" id="homeWkText">🎵 Tu bebé ya puede escuchar tu voz. ¡Hablarle todos los días hace la diferencia!</div>
+      <div class="wk-bar"><div class="wk-fill" id="wkFill" style="width:45%"></div></div>
+    </div>
+  </div>
+  <div class="home-greeting">¡Hola, <span id="homeNombre">papá</span>! 👋</div>
+  <div class="tip-row">
+    <div class="tip-ico">💡</div>
+    <div>
+      <div class="tip-tag">Consejo del día</div>
+      <div class="tip-txt" id="homeTip">Hoy es un buen día para masajear la panza con aceite. 5 minutos antes de dormir 😄</div>
+    </div>
+  </div>
+  <div class="sections-grid">
+    <div class="sec-card c-mint" onclick="goTo('detail')"><span class="sec-ico">📅</span><div class="sec-name">Esta semana</div><div class="sec-desc">¿Qué pasa ahora?</div></div>
+    <div class="sec-card c-coral" onclick="goTo('semanas')"><span class="sec-ico">🗓️</span><div class="sec-name">Semanas</div><div class="sec-desc">Las 40 semanas</div></div>
+    <div class="sec-card c-sun" onclick="goTo('recordatorios')"><span class="sec-ico">🔔</span><div class="sec-name">Recordatorios</div><div class="sec-desc">Tus rutinas diarias</div></div>
+    <div class="sec-card c-blue" onclick="goTo('compras')"><span class="sec-ico">🛒</span><div class="sec-name">Lista de compras</div><div class="sec-desc">Con precios y recomendaciones</div></div>
+    <div class="sec-card c-purple" onclick="goTo('libros')"><span class="sec-ico">📚</span><div class="sec-name">Lecturas</div><div class="sec-desc">Libros sobre paternidad</div></div>
+    <div class="sec-card wide" style="background:linear-gradient(135deg,#FF6B6B,#FF8E53);border:none;" onclick="goTo('guia')">
+      <span class="sec-ico" style="color:white">❤️</span>
+      <div><div class="sec-name" style="color:white">Guía para acompañar a la mamá</div><div class="sec-desc" style="color:rgba(255,255,255,.8)">Cómo ayudar en cada etapa</div></div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="goTo('home')"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+    <div class="nav-item" onclick="goTo('semanas')"><div class="nav-icon">📖</div><div class="nav-label">Semanas</div></div>
+    <div class="nav-item" onclick="goTo('recordatorios')"><div class="nav-icon">🔔</div><div class="nav-label">Recordatorios</div></div>
+    <div class="nav-item" onclick="goTo('compras')"><div class="nav-icon">🛒</div><div class="nav-label">Compras</div></div>
+  </div>
+</div>
+
+<!-- RECORDATORIOS -->
+<div id="recordatorios" class="screen">
+  <div class="pg-header">
+    <button class="pg-back" onclick="goTo('home')">← Volver</button>
+    <div class="pg-title">Recordatorios 🔔</div>
+    <div class="pg-sub">Tus rutinas para acompañar el embarazo</div>
+  </div>
+  <div class="rem-body">
+    <div class="section-label">💡 Sugerencias rápidas</div>
+    <div class="chip-row">
+      <div class="chip" onclick="addSug('💆‍♀️','Masaje de panza con aceite','Cada noche')">💆‍♀️ Aceite panza</div>
+      <div class="chip" onclick="addSug('🧴','Crema antiestirías','Cada mañana')">🧴 Crema</div>
+      <div class="chip" onclick="addSug('💧','Recordarle tomar agua','Cada 2 hs')">💧 Hidratación</div>
+      <div class="chip" onclick="addSug('🚶','Salir a caminar juntos','Cada tarde')">🚶 Caminata</div>
+      <div class="chip" onclick="addSug('🎵','Ponerle música al bebé','Cada día')">🎵 Música</div>
+      <div class="chip" onclick="addSug('💊','Vitaminas prenatales','Cada mañana')">💊 Vitaminas</div>
+      <div class="chip" onclick="addSug('🧘','Ejercicios de respiración','Cada noche')">🧘 Respiración</div>
+      <div class="chip" onclick="addSug('📖','Leerle un cuento al bebé','Cada noche')">📖 Cuento</div>
+    </div>
+    <div class="add-box">
+      <div class="add-box-title">✏️ Crear mi propio recordatorio</div>
+      <div class="add-row">
+        <input class="add-inp" id="remEmoji" type="text" placeholder="😊" maxlength="2" style="width:58px;flex:none;text-align:center;font-size:20px;">
+        <input class="add-inp" id="remName" type="text" placeholder="Ej: Masaje en la espalda">
+      </div>
+      <div class="add-row">
+        <select class="add-sel add-inp" id="remFreq" style="flex:1">
+          <option>Cada mañana</option><option>Cada noche</option>
+          <option selected>Cada día</option><option>Cada 2 hs</option>
+          <option>Cada semana</option><option>Cuando pueda</option>
+        </select>
+      </div>
+      <button class="btn-agregar" onclick="addCustomRem()">+ Agregar recordatorio</button>
+    </div>
+    <div class="section-label">MIS RECORDATORIOS (<span id="remCount">0</span>)</div>
+    <div id="remList"></div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="goTo('home')"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+    <div class="nav-item" onclick="goTo('semanas')"><div class="nav-icon">📖</div><div class="nav-label">Semanas</div></div>
+    <div class="nav-item active"><div class="nav-icon">🔔</div><div class="nav-label">Recordatorios</div></div>
+    <div class="nav-item" onclick="goTo('compras')"><div class="nav-icon">🛒</div><div class="nav-label">Compras</div></div>
+  </div>
+</div>
+
+<!-- COMPRAS -->
+<div id="compras" class="screen">
+  <div class="pg-header">
+    <button class="pg-back" onclick="goTo('home')">← Volver</button>
+    <div class="pg-title">Lista de compras 🛒</div>
+    <div class="pg-sub">Precios estimados en pesos · 2025</div>
+  </div>
+  <div class="compras-body" id="comprasBody"></div>
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="goTo('home')"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+    <div class="nav-item" onclick="goTo('semanas')"><div class="nav-icon">📖</div><div class="nav-label">Semanas</div></div>
+    <div class="nav-item" onclick="goTo('recordatorios')"><div class="nav-icon">🔔</div><div class="nav-label">Recordatorios</div></div>
+    <div class="nav-item active"><div class="nav-icon">🛒</div><div class="nav-label">Compras</div></div>
+  </div>
+</div>
+
+<!-- LIBROS -->
+<div id="libros" class="screen">
+  <div class="pg-header">
+    <button class="pg-back" onclick="goTo('home')">← Volver</button>
+    <div class="pg-title">Lecturas 📚</div>
+    <div class="pg-sub">Los mejores libros sobre paternidad</div>
+  </div>
+  <div class="libros-body">
+    <div class="section-label" style="margin-top:4px">📖 Para el papá</div>
+    <div class="book-card"><div class="book-cover" style="background:#E8F4FD">🧑‍🍼</div><div><div class="book-title">El embarazo mes a mes para papás</div><div class="book-author">Rafael Ordóñez · 280 págs</div><div class="book-desc">Una guía práctica escrita específicamente para el papá. Con humor y sin vueltas.</div><div class="book-tags"><span class="book-tag green">Fácil de leer</span><span class="book-tag">Para papás</span></div></div></div>
+    <div class="book-card"><div class="book-cover" style="background:#F4EEFF">🧠</div><div><div class="book-title">Brain Rules for Baby</div><div class="book-author">John Medina · 320 págs</div><div class="book-desc">Cómo criar un hijo inteligente y feliz, basado en neurociencia.</div><div class="book-tags"><span class="book-tag">Neurociencia</span><span class="book-tag orange">Muy recomendado</span></div></div></div>
+    <div class="book-card"><div class="book-cover" style="background:#E8FAF6">🤸</div><div><div class="book-title">Criar sin miedo</div><div class="book-author">Borja Quicios · 240 págs</div><div class="book-desc">Para padres que quieren disfrutar la crianza sin obsesionarse.</div><div class="book-tags"><span class="book-tag green">En español</span><span class="book-tag">Crianza</span></div></div></div>
+    <div class="section-label" style="margin-top:8px">❤️ Para leer juntos</div>
+    <div class="book-card"><div class="book-cover" style="background:#FFF0F0">❤️</div><div><div class="book-title">Bésame mucho</div><div class="book-author">Carlos González · 350 págs</div><div class="book-desc">El libro más vendido sobre crianza en español. Un clásico que no puede faltar.</div><div class="book-tags"><span class="book-tag orange">⭐ Bestseller</span><span class="book-tag green">En español</span></div></div></div>
+    <div class="book-card"><div class="book-cover" style="background:#FFFBEE">🌙</div><div><div class="book-title">Guía para el nacimiento consciente</div><div class="book-author">Michel Odent · 200 págs</div><div class="book-desc">Todo sobre el parto y cómo el papá puede ser el mejor apoyo.</div><div class="book-tags"><span class="book-tag">Parto</span><span class="book-tag">Postparto</span></div></div></div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="goTo('home')"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+    <div class="nav-item" onclick="goTo('semanas')"><div class="nav-icon">📖</div><div class="nav-label">Semanas</div></div>
+    <div class="nav-item" onclick="goTo('recordatorios')"><div class="nav-icon">🔔</div><div class="nav-label">Recordatorios</div></div>
+    <div class="nav-item" onclick="goTo('compras')"><div class="nav-icon">🛒</div><div class="nav-label">Compras</div></div>
+  </div>
+</div>
+
+<!-- GUIA -->
+<div id="guia" class="screen">
+  <div class="pg-header" style="background:linear-gradient(135deg,#FF6B6B,#FF8E53);border:none;">
+    <button class="pg-back" style="color:rgba(255,255,255,.7)" onclick="goTo('home')">← Volver</button>
+    <div class="pg-title" style="color:white">Guía para acompañar a la mamá ❤️</div>
+    <div class="pg-sub" style="color:rgba(255,255,255,.8)">Cómo estar presente de verdad</div>
+  </div>
+  <div class="guia-body">
+    <div class="guia-section"><div class="guia-sec-title">😰 Primer trimestre</div><div class="guia-item"><div class="guia-dot">💚</div><div>Las náuseas son reales. No le digas "ya va a pasar" — mejor acompañala y tené galletitas cerca.</div></div><div class="guia-item"><div class="guia-dot">💚</div><div>Tomá vos las tareas de la casa sin que te lo pida. Ella está usando toda su energía en crear un ser humano.</div></div><div class="guia-item"><div class="guia-dot">💚</div><div>Acompañala a todos los turnos médicos que puedas. Tu presencia vale más de lo que imaginás.</div></div></div>
+    <div class="guia-section"><div class="guia-sec-title">🌟 Segundo trimestre</div><div class="guia-item"><div class="guia-dot">💛</div><div>Es la etapa "buena". Aprovechá para salir juntos, planificar el cuarto del bebé, disfrutar.</div></div><div class="guia-item"><div class="guia-dot">💛</div><div>Masajes en la panza con aceite todas las noches. 5-10 minutos. Es un momento de conexión muy especial.</div></div><div class="guia-item"><div class="guia-dot">💛</div><div>Hablale al bebé. Puede sonar raro pero es un momento que no vas a olvidar.</div></div></div>
+    <div class="guia-section"><div class="guia-sec-title">🏁 Tercer trimestre</div><div class="guia-item"><div class="guia-dot">🧡</div><div>Ya empieza la incomodidad fuerte. Sé paciente y ofrecé ayuda concreta sin que te lo pida.</div></div><div class="guia-item"><div class="guia-dot">🧡</div><div>Armá la bolsa del hospital juntos. Encargarte vos de tenerla lista para semana 36.</div></div><div class="guia-item"><div class="guia-dot">🧡</div><div>Aprendé sobre el proceso del parto. Vas a ser su apoyo principal en ese momento.</div></div></div>
+    <div class="guia-section"><div class="guia-sec-title">🏥 El día del parto</div><div class="guia-item"><div class="guia-dot">❤️</div><div>Tu trabajo es ser su ancla. Estar calmado, hablarle bajo, darle la mano, recordarle que respire.</div></div><div class="guia-item"><div class="guia-dot">❤️</div><div>Si te ofrecen cortar el cordón, hacelo. Es uno de esos momentos que te cambia para siempre.</div></div></div>
+    <div class="guia-section"><div class="guia-sec-title">🌙 Postparto</div><div class="guia-item"><div class="guia-dot">💜</div><div>La "baby blues" es real. Puede llorar sin razón. Acompañá sin juzgar.</div></div><div class="guia-item"><div class="guia-dot">💜</div><div>Tomá los turnos nocturnos. El sueño es oro.</div></div><div class="guia-item"><div class="guia-dot">💜</div><div>Decile que la estás viendo, que lo está haciendo bien. Lo necesita escuchar más de lo que creés.</div></div></div>
+    <div class="guia-section" style="border-color:var(--coral);background:var(--coral-l)"><div class="guia-sec-title" style="color:var(--coral)">⚠️ Cosas que NO decir</div><div class="guia-item"><div class="guia-dot" style="color:var(--coral)">✗</div><div><strong>"Estás exagerando"</strong> — nunca, sobre ningún síntoma.</div></div><div class="guia-item"><div class="guia-dot" style="color:var(--coral)">✗</div><div><strong>"Estás muy sensible"</strong> — es real, no es drama.</div></div><div class="guia-item"><div class="guia-dot" style="color:var(--coral)">✗</div><div><strong>"Yo también estoy cansado"</strong> — guardátelo los primeros meses.</div></div></div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="goTo('home')"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+    <div class="nav-item" onclick="goTo('semanas')"><div class="nav-icon">📖</div><div class="nav-label">Semanas</div></div>
+    <div class="nav-item" onclick="goTo('recordatorios')"><div class="nav-icon">🔔</div><div class="nav-label">Recordatorios</div></div>
+    <div class="nav-item" onclick="goTo('compras')"><div class="nav-icon">🛒</div><div class="nav-label">Compras</div></div>
+  </div>
+</div>
+
+<!-- SEMANAS -->
+<div id="semanas" class="screen">
+  <div class="pg-header">
+    <button class="pg-back" onclick="goTo('home')">← Volver</button>
+    <div class="pg-title">Semana a semana 🗓️</div>
+    <div class="pg-sub">Las 40 semanas, todas desbloqueadas 🎉</div>
+  </div>
+  <div class="weeks-body">
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">4</div><div><div class="wk-item-t">¡Test positivo! 🎉</div><div class="wk-item-s">Arranca la aventura más grande de tu vida</div></div></div>
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">8</div><div><div class="wk-item-t">Primer latido 💓</div><div class="wk-item-s">Se puede escuchar el corazón del bebé</div></div></div>
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">12</div><div><div class="wk-item-t">Fin del primer trimestre 🥳</div><div class="wk-item-s">Todos los órganos están formados</div></div></div>
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">16</div><div><div class="wk-item-t">Te puede escuchar 🎵</div><div class="wk-item-s">¡Empezá a hablarle ya mismo!</div></div></div>
+    <div class="wk-item cur" onclick="goTo('detail')"><div class="wk-badge">18</div><div><div class="wk-item-t">Ecografía morfológica 🔍</div><div class="wk-item-s">Se puede saber el sexo del bebé</div></div><div class="cur-tag">📍 Ahora</div></div>
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">24</div><div><div class="wk-item-t">Viabilidad del bebé 🏥</div><div class="wk-item-s">Hito médico importante</div></div></div>
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">28</div><div><div class="wk-item-t">Tercer trimestre 🚀</div><div class="wk-item-s">Abre los ojos y practica respirar</div></div></div>
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">32</div><div><div class="wk-item-t">Bolsa del hospital 🎒</div><div class="wk-item-s">Momento de prepararla</div></div></div>
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">36</div><div><div class="wk-item-t">Posición final 🤸</div><div class="wk-item-s">El bebé se acomoda para nacer</div></div></div>
+    <div class="wk-item" onclick="goTo('detail')"><div class="wk-badge">40</div><div><div class="wk-item-t">¡Semana del parto! 🎊</div><div class="wk-item-s">Todo lo que necesitás saber</div></div></div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="goTo('home')"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+    <div class="nav-item active"><div class="nav-icon">📖</div><div class="nav-label">Semanas</div></div>
+    <div class="nav-item" onclick="goTo('recordatorios')"><div class="nav-icon">🔔</div><div class="nav-label">Recordatorios</div></div>
+    <div class="nav-item" onclick="goTo('compras')"><div class="nav-icon">🛒</div><div class="nav-label">Compras</div></div>
+  </div>
+</div>
+
+<!-- DETALLE -->
+<div id="detail" class="screen">
+  <div class="det-header">
+    <button class="det-back" onclick="goBack()">← Volver</button>
+    <div class="det-wk">Semana 18</div>
+    <div class="det-title">Ecografía morfológica 🔍</div>
+    <div class="det-sub">Tu bebé mide ~14 cm y pesa ~190g. Esta semana es muy especial.</div>
+  </div>
+  <div class="det-body">
+    <div class="det-sec"><div class="det-sec-title">👶 ¿Qué pasa con el bebé?</div><p>El bebé ya puede escuchar sonidos del exterior, incluyendo tu voz. Al nacer, va a girar la cabeza hacia tu voz.</p><p>Sus movimientos son más coordinados y sus huesos se están endureciendo.</p></div>
+    <div class="det-sec"><div class="det-sec-title">🤰 ¿Cómo está la mamá?</div><p>Puede sentir los primeros movimientos del bebé, como burbujas. Es uno de los momentos más emocionantes.</p><p>Puede tener molestias en la espalda baja. Un masaje suave todas las noches va a marcar la diferencia.</p></div>
+    <div class="det-sec"><div class="det-sec-title">✅ Tu checklist</div>
+      <div class="det-task"><div class="det-chk" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''"></div><div>Acompañarla a la ecografía morfológica</div></div>
+      <div class="det-task"><div class="det-chk on" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''">✓</div><div>Comprar aceite o crema para la panza</div></div>
+      <div class="det-task"><div class="det-chk" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''"></div><div>Hablarle al bebé 5 minutos por día</div></div>
+      <div class="det-task"><div class="det-chk" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''"></div><div>Masajear la panza cada noche</div></div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="goTo('home')"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+    <div class="nav-item" onclick="goTo('semanas')"><div class="nav-icon">📖</div><div class="nav-label">Semanas</div></div>
+    <div class="nav-item" onclick="goTo('recordatorios')"><div class="nav-icon">🔔</div><div class="nav-label">Recordatorios</div></div>
+    <div class="nav-item" onclick="goTo('compras')"><div class="nav-icon">🛒</div><div class="nav-label">Compras</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://myhztfmbvcnqmcviggmk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15aHp0Zm1idmNucW1jdmlnZ21rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MzAwNTksImV4cCI6MjA4ODQwNjA1OX0.7A3Dn5sOg4ICT0gURzRoyVgc-yWWIPlb0sRnN6UZqLQ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let userProfile = null;
+let reminders   = [];
+let comprasState = {};
+let prevScreen  = 'home';
+
+const TIPS = [
+  'Hoy es un buen día para masajear la panza con aceite. 5 minutos antes de dormir 😄',
+  'Preguntale cómo se siente, no solo cómo está el bebé. Ella también necesita atención 💛',
+  'Hablale al bebé hoy. Ya te puede escuchar y te va a reconocer al nacer 🎵',
+  'Recordale tomar agua. En el embarazo la hidratación es clave 💧',
+  'Sorprendela con algo pequeño hoy: traele algo rico, un abrazo largo, o simplemente escuchala 🤗',
+];
+
+// ── INIT ─────────────────────────────────────
+window.addEventListener('load', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await loadProfile();
+  } else {
+    goTo('auth');
+  }
+});
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    currentUser = session.user;
+    await loadProfile();
+  } else if (event === 'SIGNED_OUT') {
+    goTo('auth');
+  }
+});
+
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (!data || !data.nombre) {
+    goTo('onboarding');
+    return;
+  }
+  userProfile = data;
+  updateHomeUI();
+  await loadCompras();
+  await loadReminders();
+  goTo('home');
+}
+
+function updateHomeUI() {
+  if (!userProfile) return;
+  const nombre  = userProfile.nombre || 'papá';
+  const semana  = userProfile.semana || 18;
+  document.getElementById('homeNombre').textContent = nombre;
+  document.getElementById('avatarLetter').textContent = nombre.charAt(0).toUpperCase();
+  document.getElementById('homeSemana').innerHTML = `${semana} <em>/ 40</em>`;
+  document.getElementById('wkFill').style.width = `${(semana/40)*100}%`;
+  document.getElementById('homeTip').textContent = TIPS[Math.floor(Math.random()*TIPS.length)];
+}
+
+// ── AUTH ─────────────────────────────────────
+let authMode = 'login';
+
+function switchTab(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&mode==='login')||(i===1&&mode==='register')));
+  document.getElementById('authNombre').style.display = mode==='register' ? 'block' : 'none';
+  document.getElementById('btnAuth').textContent = mode==='login' ? 'Iniciar sesión' : 'Crear cuenta';
+  document.getElementById('authErr').textContent = '';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const pass  = document.getElementById('authPass').value;
+  const nombre= document.getElementById('authNombre').value.trim();
+  document.getElementById('authErr').textContent = '';
+
+  if (!email || !pass) { document.getElementById('authErr').textContent = 'Completá email y contraseña'; return; }
+
+  if (authMode === 'login') {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) document.getElementById('authErr').textContent = 'Email o contraseña incorrectos';
+  } else {
+    if (!nombre) { document.getElementById('authErr').textContent = 'Escribí tu nombre'; return; }
+    const { error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: nombre } } });
+    if (error) document.getElementById('authErr').textContent = error.message;
+    else toast('✅ ¡Cuenta creada! Revisá tu email para confirmar.');
+  }
+}
+
+async function loginGoogle() {
+  await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+}
+
+async function logout() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  await sb.auth.signOut();
+}
+
+// ── ONBOARDING ───────────────────────────────
+async function saveProfile() {
+  const nombre = document.getElementById('obNombre').value.trim();
+  const semana = parseInt(document.getElementById('obSemana').value) || 18;
+  const fecha  = document.getElementById('obFecha').value || null;
+  if (!nombre) { toast('⚠️ Escribí tu nombre'); return; }
+
+  await sb.from('profiles').upsert({ id: currentUser.id, nombre, semana, fecha_parto: fecha });
+  userProfile = { nombre, semana, fecha_parto: fecha };
+  updateHomeUI();
+  goTo('home');
+}
+
+// ── RECORDATORIOS ────────────────────────────
+async function loadReminders() {
+  const { data } = await sb.from('recordatorios').select('*').eq('user_id', currentUser.id).order('created_at');
+  reminders = data || [];
+}
+
+async function addSug(emoji, nombre, frecuencia) {
+  if (reminders.find(r=>r.nombre===nombre)) { toast('¡Ya lo tenés en tu lista 😊!'); return; }
+  const { data } = await sb.from('recordatorios').insert({ user_id: currentUser.id, emoji, nombre, frecuencia }).select().single();
+  if (data) { reminders.push(data); renderRem(); toast(`✅ "${nombre}" agregado!`); }
+}
+
+async function addCustomRem() {
+  const emoji     = document.getElementById('remEmoji').value.trim() || '🔔';
+  const nombre    = document.getElementById('remName').value.trim();
+  const frecuencia= document.getElementById('remFreq').value;
+  if (!nombre) { toast('⚠️ Escribí un nombre'); return; }
+  const { data } = await sb.from('recordatorios').insert({ user_id: currentUser.id, emoji, nombre, frecuencia }).select().single();
+  if (data) {
+    reminders.push(data);
+    document.getElementById('remEmoji').value = '';
+    document.getElementById('remName').value  = '';
+    renderRem(); toast('✅ ¡Recordatorio agregado!');
+  }
+}
+
+async function toggleRem(id) {
+  const r = reminders.find(r=>r.id===id);
+  if (!r) return;
+  r.hecho = !r.hecho;
+  await sb.from('recordatorios').update({ hecho: r.hecho }).eq('id', id);
+  renderRem();
+}
+
+async function delRem(id) {
+  await sb.from('recordatorios').delete().eq('id', id);
+  reminders = reminders.filter(r=>r.id!==id);
+  renderRem(); toast('🗑️ Recordatorio eliminado');
+}
+
+function renderRem() {
+  document.getElementById('remCount').textContent = reminders.length;
+  const el = document.getElementById('remList');
+  if (!reminders.length) { el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--mid);font-size:14px;">No tenés recordatorios.<br>¡Agregá uno arriba! 👆</div>'; return; }
+  el.innerHTML = reminders.map(r=>`
+    <div class="rem-item ${r.hecho?'done':''}">
+      <div class="rem-ico2">${r.emoji}</div>
+      <div class="rem-info"><div class="rem-name">${r.nombre}</div><div class="rem-freq">🔁 ${r.frecuencia}</div></div>
+      <div class="rem-chk ${r.hecho?'on':''}" onclick="toggleRem('${r.id}')">${r.hecho?'✓':''}</div>
+      <button class="rem-del" onclick="delRem('${r.id}')">✕</button>
+    </div>`).join('');
+}
+
+// ── COMPRAS ──────────────────────────────────
+
+// 💡 PARA ACTUALIZAR PRECIOS: cambiá los valores de "precio" acá abajo
+// Última actualización: Enero 2025
+const PRODUCTOS = [
+  { cat: '🛏️ Dormir y descanso', catColor: 'var(--dark)', items: [
+    { key:'cuna',      nombre:'Moisés / Cuna',          desc:'Para los primeros meses. El moisés es más práctico al principio.', precio:'$80.000 – $250.000', rec:'⭐ Baby Monsters', esencial:true,  ml:'moises cuna bebe',         fb:'moisés cuna bebé' },
+    { key:'colchon',   nombre:'Colchón para cuna',       desc:'Debe ser firme y del tamaño exacto. No usar almohadas.',          precio:'$30.000 – $80.000',  rec:'',                esencial:true,  ml:'colchon cuna bebe',        fb:'colchón cuna bebé' },
+    { key:'sabanas',   nombre:'Sábanas para cuna (x3)',  desc:'Tener varios juegos facilita los cambios nocturnos.',            precio:'$15.000 – $40.000',  rec:'',                esencial:false, ml:'sabanas cuna bebe',        fb:'sábanas cuna bebé' },
+  ]},
+  { cat: '🍼 Alimentación', catColor: 'var(--coral)', items: [
+    { key:'extractor', nombre:'Extractor de leche',         desc:'Muy útil si la mamá va a dar de mamar. Los eléctricos son más cómodos.', precio:'$60.000 – $180.000', rec:'⭐ Medela Swing', esencial:false, ml:'extractor de leche electrico', fb:'extractor leche' },
+    { key:'mamadera',  nombre:'Mamadera (x4) + esterilizador', desc:'Aunque den pecho, las mamaderas son indispensables.',       precio:'$25.000 – $70.000',  rec:'⭐ MAM o Avent',  esencial:true,  ml:'mamadera bebe set',            fb:'mamaderas bebé' },
+  ]},
+  { cat: '👶 Higiene', catColor: 'var(--purple)', items: [
+    { key:'banera',    nombre:'Bañera para bebé',        desc:'Las que tienen soporte antideslizante son más seguras.',         precio:'$20.000 – $60.000',  rec:'',               esencial:false, ml:'bañera bebe antideslizante',   fb:'bañera bebé' },
+    { key:'panales',   nombre:'Pañales recién nacido',   desc:'Comprá talla RN, después pasan rápido a T1.',                   precio:'$15.000 – $35.000',  rec:'⭐ Pampers',      esencial:true,  ml:'pañales recien nacido',        fb:'pañales recién nacido' },
+    { key:'crema-zinc',nombre:'Crema pasta zinc',        desc:'Ponela en cada cambio para prevenir irritaciones.',             precio:'$8.000 – $18.000',   rec:'⭐ Hipoglos',     esencial:true,  ml:'pasta zinc bebe hipoglos',     fb:'crema zinc bebé' },
+  ]},
+  { cat: '🚗 Traslado', catColor: 'var(--blue)', items: [
+    { key:'butaca',    nombre:'Butaca para auto',        desc:'Obligatoria. Invertí en una buena, es lo más importante.',      precio:'$120.000 – $400.000', rec:'⭐ Graco SnugRide', esencial:true, ml:'butaca auto bebe recien nacido', fb:'butaca auto bebé' },
+    { key:'cochecito', nombre:'Cochecito / carriola',    desc:'Los sistemas 3 en 1 (moisés+silla+portabebé) son lo mejor.',   precio:'$200.000 – $800.000', rec:'⭐ Chicco Trio',    esencial:false,ml:'cochecito bebe 3 en 1',          fb:'cochecito bebé' },
+  ]},
+  { cat: '🧴 Para la mamá', catColor: 'var(--mint)', catDark: true, items: [
+    { key:'aceite',    nombre:'Aceite para la panza',    desc:'Almendras dulces o rosa mosqueta. 2 veces por día desde semana 12.', precio:'$8.000 – $25.000',  rec:'⭐ Weleda',        esencial:true,  ml:'aceite almendras embarazo',    fb:'aceite panza embarazo' },
+    { key:'crema',     nombre:'Crema antiestirías',      desc:'La constancia es lo que hace la diferencia.',                  precio:'$12.000 – $40.000',  rec:'⭐ Bio-Oil o Mustela', esencial:false, ml:'crema antiestrías embarazo',fb:'crema antiestirías embarazo' },
+  ]},
+];
+
+function mlUrl(q)  { return `https://listado.mercadolibre.com.ar/${encodeURIComponent(q).replace(/%20/g,'-')}`; }
+function fbUrl(q)  { return `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(q)}`; }
+
+function renderCompras() {
+  const body = document.getElementById('comprasBody');
+  let html = '';
+
+  PRODUCTOS.forEach(cat => {
+    const darkText = cat.catDark ? 'color:var(--dark)' : '';
+    html += `<div class="cat-pill" style="background:${cat.catColor};${darkText}">${cat.cat}</div>`;
+
+    cat.items.forEach(p => {
+      const isDone = comprasState[p.key];
+      html += `
+        <div class="buy-item ${isDone?'done':''}" id="bi-${p.key}">
+          <div class="buy-chk ${isDone?'on':''}" onclick="toggleBuy('${p.key}',this)">${isDone?'✓':''}</div>
+          <div class="buy-info">
+            <div class="buy-name">${p.nombre}</div>
+            <div class="buy-desc">${p.desc}</div>
+            <div class="buy-row2">
+              <span class="buy-price">💰 ${p.precio}</span>
+              ${p.rec ? `<span class="buy-rec">${p.rec}</span>` : ''}
+              ${p.esencial ? `<span class="buy-prio">🔴 Esencial</span>` : ''}
+            </div>
+            <div class="buy-links">
+              <a class="btn-ml" href="${mlUrl(p.ml)}" target="_blank" rel="noopener">
+                <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#3483FA" d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z"/><path fill="#fff" d="M15 20l9 9 9-9"/></svg>
+                Ver en MercadoLibre
+              </a>
+              <a class="btn-fb" href="${fbUrl(p.fb)}" target="_blank" rel="noopener">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>
+                Facebook Marketplace
+              </a>
+            </div>
+            <div class="price-updated">📅 Precios actualizados: Enero 2025</div>
+          </div>
+        </div>`;
+    });
+  });
+
+  body.innerHTML = html;
+}
+async function loadCompras() {
+  const { data } = await sb.from('compras').select('*').eq('user_id', currentUser.id);
+  comprasState = {};
+  (data||[]).forEach(c => comprasState[c.item_key] = c.comprado);
+  renderCompras();
+}
+
+async function toggleBuy(key, el) {
+  const on = !comprasState[key];
+  comprasState[key] = on;
+  await sb.from('compras').upsert({ user_id: currentUser.id, item_key: key, comprado: on });
+  renderCompras();
+  toast(on ? '✅ ¡Producto comprado!' : '↩️ Marcado como pendiente');
+}
+
+// ── NAVEGACIÓN ───────────────────────────────
+function goTo(id) {
+  const cur = document.querySelector('.screen.active');
+  if (cur) { prevScreen = cur.id; cur.classList.remove('active'); }
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+  if (id==='recordatorios') renderRem();
+  if (id==='compras') renderCompras();
+}
+
+function goBack() { goTo(prevScreen); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
